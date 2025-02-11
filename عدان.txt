@@ -1,0 +1,131 @@
+-- خدمات Roblox الأساسية
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+
+-- إعدادات السكربت المتقدمة
+local AIMBOT_RANGE = 500 -- نطاق أكبر للاستهداف
+local HEADSHOT_MULTIPLIER = 2.0 -- مضاعفة قوة التصويب على الرأس
+local SPRINT_SPEED = 60 -- زيادة سرعة الركض
+local DEFAULT_SPEED = 16
+local ESP_COLOR = Color3.fromRGB(0, 255, 0)
+local ESP_DISTANCE = 1000
+local isESPEnabled = false
+local isAimbotEnabled = false
+local isSprinting = false
+
+-- حماية ضد الاكتشاف
+local function protectScript()
+    pcall(function()
+        if not game:IsLoaded() then
+            game.Loaded:Wait()
+        end
+        local protectionGui = Instance.new("ScreenGui")
+        protectionGui.Name = "AntiDetect"..tostring(math.random(10000, 99999))
+        protectionGui.Parent = game.CoreGui
+    end)
+end
+protectScript()
+
+-- وظيفة تحسين التصويب
+local function getBestTarget()
+    local bestTarget = nil
+    local shortestDistance = AIMBOT_RANGE
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Team ~= LocalPlayer.Team then
+            local character = player.Character
+            if character and character:FindFirstChild("HumanoidRootPart") then
+                local rootPart = character.HumanoidRootPart
+                local screenPosition, onScreen = Camera:WorldToScreenPoint(rootPart.Position)
+                if onScreen then
+                    local distance = (Vector2.new(Mouse.X, Mouse.Y) - Vector2.new(screenPosition.X, screenPosition.Y)).Magnitude
+                    if distance < shortestDistance then
+                        shortestDistance = distance
+                        bestTarget = rootPart
+                    end
+                end
+            end
+        end
+    end
+    return bestTarget
+end
+
+-- تحديث التصويب
+local function aimAtTarget()
+    if isAimbotEnabled then
+        local target = getBestTarget()
+        if target then
+            local screenPosition = Camera:WorldToScreenPoint(target.Position)
+            mousemoverel((screenPosition.X - Mouse.X) / 3, (screenPosition.Y - Mouse.Y) / 3)
+        end
+    end
+end
+
+-- تحسين ESP
+local function createESP(character)
+    if character and not character:FindFirstChild("ESPBox") then
+        local box = Instance.new("BoxHandleAdornment")
+        box.Size = Vector3.new(4, 7, 4)
+        box.Adornee = character:FindFirstChild("HumanoidRootPart")
+        box.Color3 = ESP_COLOR
+        box.Transparency = 0.5
+        box.AlwaysOnTop = true
+        box.Parent = character
+    end
+end
+
+local function updateESP()
+    if isESPEnabled then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Team ~= LocalPlayer.Team then
+                local character = player.Character
+                if character then
+                    createESP(character)
+                end
+            end
+        end
+    else
+        for _, player in pairs(Players:GetPlayers()) do
+            local character = player.Character
+            if character and character:FindFirstChild("ESPBox") then
+                character:FindFirstChild("ESPBox"):Destroy()
+            end
+        end
+    end
+end
+
+-- تحديث الوظائف في كل إطار
+RunService.RenderStepped:Connect(function()
+    aimAtTarget()
+    updateESP()
+end)
+
+-- تفعيل الركض
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.LeftShift then
+        LocalPlayer.Character.Humanoid.WalkSpeed = SPRINT_SPEED
+        isSprinting = true
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.LeftShift then
+        LocalPlayer.Character.Humanoid.WalkSpeed = DEFAULT_SPEED
+        isSprinting = false
+    end
+end)
+
+-- التحكم في ESP و Aimbot
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.F then
+        isESPEnabled = not isESPEnabled
+    elseif input.KeyCode == Enum.KeyCode.E then
+        isAimbotEnabled = not isAimbotEnabled
+    end
+end)
+
+print("[⚡] Advanced Aimbot & ESP Script Loaded Successfully!")
